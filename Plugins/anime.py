@@ -30,7 +30,7 @@ async def event_handler_latest(client, message):
     except Exception as e:
         logging.error(f"Error in latest: {e}")
         await message.reply_text("An error occurred while fetching the latest anime.")
-
+"""
 @app.on_message(filters.command(["anime"]))
 async def event_handler_anime(client, message):
     try:
@@ -62,6 +62,51 @@ async def event_handler_anime(client, message):
     except Exception as e:
         logging.error(f"Error in anime search: {e}")
         await fetching_message.edit_text(
+            'Not Found, Check for Typos or search Japanese name',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("Example", url="https://media.giphy.com/media/4pk6ba2LUEMi4/giphy.gif")
+            ]])
+        )
+"""
+@app.on_message(filters.command(["gogosearch", "anime"]))
+async def handle_anime_search(client, message):
+    command = message.text.split()[0]
+    
+    if command not in ["/gogosearch", "/anime"]:
+        return
+    
+    try:
+        data = cdb.find({"_id": "GogoAnime"})
+        gogo = Gogo(
+            gogoanime_token=data["gogoanime"],
+            auth_token=data["auth"],
+            host=data["url"]
+        )
+        
+        if len(message.text.split()) < 2:
+            await message.reply_text(
+                f'Command must be used like this\n{command} <name of anime>\nexample: {command} One Piece',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("Example", url="https://media1.tenor.com/images/eaac56a1d02536ed416b5a080fdf73ba/tenor.gif?itemid=15075442")
+                ]])
+            )
+            return
+        
+        anime_name = " ".join(message.text.split()[1:])
+        fetching_message = await message.reply_text('Fetching details...')
+        
+        search_result = gogo.get_search_results(anime_name)
+        names, ids = format.format_search_results(search_result)
+        
+        buttons = [[InlineKeyboardButton(name, callback_data=f"dts:{id_}")] for name, id_ in zip(names, ids)]
+        
+        await fetching_message.edit_text(
+            'Search Results:',
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    except Exception as e:
+        logging.error(f"Error in anime search: {e}")
+        await message.reply_text(
             'Not Found, Check for Typos or search Japanese name',
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("Example", url="https://media.giphy.com/media/4pk6ba2LUEMi4/giphy.gif")
